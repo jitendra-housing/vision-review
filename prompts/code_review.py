@@ -6,9 +6,20 @@ review_prompt = ChatPromptTemplate.from_messages([
   - Bugs and logic errors
   - Performance issues
   - Code quality and best practices
+  - Dead or unused code
+
+  **Your task:**
+  1. Review the CHANGES (diff) for issues
+  2. Analyze how changes IMPACT other parts of the file (even if not in diff)
+  3. Comment on the changed lines, but mention impacts on unchanged code
 
   Return findings as JSON array:
   [{{"path": "filename", "line": <num>, "body": "**[SEVERITY]** description"}}]
+
+  CRITICAL: Line numbers MUST be from the diff, not the original file.
+  - Count lines starting from the first changed line in the diff
+  - Only reference lines that are marked with + or - in the diff
+  - Do NOT use line numbers from the full file context
 
   IMPORTANT:
   - Include "path" (filename) for each comment.

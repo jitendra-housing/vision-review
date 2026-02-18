@@ -2,6 +2,7 @@ from github import Github, Auth, GithubException, Repository
 from github.PullRequest import PullRequest
 from github.File import File
 from dotenv import load_dotenv
+from utils.file_filter import FileFilter
 import os
 
 class GithubService:
@@ -25,7 +26,7 @@ class GithubRepoService(GithubService):
 
         files = []
         for file in pr.get_files():
-            if file.status != "removed" and file.patch:
+            if file.status != "removed" and file.patch and FileFilter.should_review(filename=file.filename):
                 full_file_code = self._fetch_full_file(file=file, repo=repo, pr=pr)
                 files.append({
                     "filename": file.filename,
