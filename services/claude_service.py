@@ -7,9 +7,44 @@ class ClaudeService:
         self.llm = ChatAnthropic(model="claude-sonnet-4-5-20250929", temperature=0)
 
     def review_pr(self, pr_data: dict) -> list:
+
+        batches = self._create_batches(files=pr_data.get("files"))
+        print(f"Split into {len(batches)} batches")
+
+        all_comments = []
+        for i, batch in enumerate(batches):
+            print(f"Reviewing batch {i+1}/{len(batches)} ({len(batch)} files)")
+            comments = self._review_batch(batch=batch)
+            all_comments.extend(comments)
+        
+        return all_comments
+
+
+    def _create_batches(self, files: list, max_tokens=150_000):
+        batches = []
+        current_batch = []
+        current_tokens = 0
+
+        for file in files:
+            tokens = (len(file.get("full_content") or "") + len(file.get("patch") or "")) // 4
+
+            if current_tokens + tokens > max_tokens and current_batch:
+                batches.append(current_batch)
+                current_batch = [file]
+                current_tokens = tokens
+            else:
+                current_batch.append(file)
+                current_tokens += tokens
+        
+        if current_batch:
+            batches.append(current_batch)
+
+        return batches
+
+    def _review_batch(self, batch: list) -> list:
         from prompts.code_review import review_prompt
 
-        all_files_text = self._format_files(files=pr_data.get("files"))
+        all_files_text = self._format_files(files=batch)
 
         prompt_value = review_prompt.invoke({
             "all_files": all_files_text

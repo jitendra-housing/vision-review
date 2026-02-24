@@ -20,6 +20,7 @@ review_prompt = ChatPromptTemplate.from_messages([
   - Count lines starting from the first changed line in the diff
   - Only reference lines that are marked with + or - in the diff
   - Do NOT use line numbers from the full file context
+  - Only flag bugs that will definitely cause incorrect behavior. Do not suggest speculative refactors or defensive coding improvements."
 
   IMPORTANT:
   - Include "path" (filename) for each comment.
