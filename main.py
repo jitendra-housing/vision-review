@@ -57,11 +57,11 @@ def process_review(repo: str, pr_number: int):
         
         claude_service = ClaudeService()
         print("Reviewing PR with claude")  
-        comments = claude_service.review_pr(pr_data=pr_data)
+        comments = claude_service.review_pr(pr_data=pr_data, repo=repo)
         print(f"Found {len(comments)} issues")
 
         if comments:
-            github_service.post_review(repo=repo, pr_number=pr_number, comments=comments, commit_sha=pr_data.get("head_sha"))
+            github_service.post_review(repo=repo, pr_number=pr_number, comments=comments, commit_sha=pr_data.get("head_sha"), pr_files=pr_data.get("files"))
             print("Review posted successfully")
         else:
             print("No issues found - no review posted")

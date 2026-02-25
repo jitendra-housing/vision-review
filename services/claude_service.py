@@ -1,12 +1,37 @@
 from langchain_anthropic import ChatAnthropic
+from prompts.code_review import REVIEW_SYSTEM_PROMPT, REVIEW_USER_PROMPT
 import json
 import re
+import os
+
+GUIDELINES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompts", "guidelines")
+
+REPO_GUIDELINES = {
+    "elarahq/housing.brahmand": ["housing.brahmand.md"],
+    "elarahq/housing.seller": ["housing.seller.md"],
+    "elarahq/housing.seo": ["housing.seo.md"],
+    "elarahq/khoj": ["khoj.md"],
+    "elarahq/housing-app": [],  # no repo-specific md, uses platform guidelines below
+}
+
+     
+PLATFORM_GUIDELINES = {
+    ".swift": "iOS.md",
+    ".m": "iOS.md",
+    ".h": "iOS.md",
+    ".xib": "iOS.md",
+    ".storyboard": "iOS.md",
+    ".kt": "Android.md",
+    ".java": "Android.md",
+}
 
 class ClaudeService:
     def __init__(self):
         self.llm = ChatAnthropic(model="claude-sonnet-4-5-20250929", temperature=0)
 
-    def review_pr(self, pr_data: dict) -> list:
+    def review_pr(self, pr_data: dict, repo: str) -> list:
+        guidelines = self._load_guidelines(repo=repo, files=pr_data.get("files"))
+        system_text = REVIEW_SYSTEM_PROMPT + "\n\nGUIDELINES:\n" + guidelines
 
         batches = self._create_batches(files=pr_data.get("files"))
         print(f"Split into {len(batches)} batches")
@@ -14,11 +39,53 @@ class ClaudeService:
         all_comments = []
         for i, batch in enumerate(batches):
             print(f"Reviewing batch {i+1}/{len(batches)} ({len(batch)} files)")
-            comments = self._review_batch(batch=batch)
+            comments = self._review_batch(batch=batch, system_text=system_text)
             all_comments.extend(comments)
         
         return all_comments
 
+    def _load_guidelines(self, repo: str, files: list) -> str:
+        guidelines = ""
+        loaded = []
+
+        try:
+            common_path = os.path.join(GUIDELINES_DIR, "Common.md")
+            with open(common_path) as f:
+                guidelines = f.read()
+            loaded.append("Common.md")
+        except FileNotFoundError:
+            print(f"Warning: Common.md not found at {common_path}")
+
+        repo_guidelines = REPO_GUIDELINES.get(repo, [])
+        for filename in repo_guidelines:
+            try:
+                filepath = os.path.join(GUIDELINES_DIR, filename)
+                with open(filepath) as f:
+                    guidelines += "\n\n" + f.read()
+                loaded.append(filename)
+            except FileNotFoundError:
+                print(f"Warning: {filename} not found")
+
+        if repo == "elarahq/housing-app" and files:
+            platform_file = self._detect_platform(files)
+            if platform_file:
+                try:
+                    filepath = os.path.join(GUIDELINES_DIR, platform_file)
+                    with open(filepath) as f:
+                        guidelines += "\n\n" + f.read()
+                    loaded.append(platform_file)
+                except FileNotFoundError:
+                    print(f"Warning: {platform_file} not found")
+
+        print(f"Loaded guidelines: {' + '.join(loaded) if loaded else 'none'}")
+        return guidelines
+
+    def _detect_platform(self, files: list) -> str | None:
+        for file in files:
+            ext = os.path.splitext(file.get("filename", ""))[1].lower()
+            if ext in PLATFORM_GUIDELINES:
+                return PLATFORM_GUIDELINES[ext]
+        return None
 
     def _create_batches(self, files: list, max_tokens=150_000):
         batches = []
@@ -41,16 +108,28 @@ class ClaudeService:
 
         return batches
 
-    def _review_batch(self, batch: list) -> list:
-        from prompts.code_review import review_prompt
+    def _review_batch(self, batch: list, system_text: str) -> list:
 
         all_files_text = self._format_files(files=batch)
 
-        prompt_value = review_prompt.invoke({
-            "all_files": all_files_text
-        })
+        messages = [
+              {
+                  "role": "system",
+                  "content": [
+                      {
+                          "type": "text",
+                          "text": system_text,
+                          "cache_control": {"type": "ephemeral"}
+                      }
+                  ],
+              },
+              {
+                  "role": "user",
+                  "content": REVIEW_USER_PROMPT.format(all_files=all_files_text),
+              },
+          ]
 
-        response = self.llm.invoke(prompt_value)
+        response = self.llm.invoke(messages)
 
         try:
             content = response.content.strip()
