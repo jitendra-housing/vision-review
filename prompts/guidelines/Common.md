@@ -13,7 +13,7 @@ Universal code review standards for all platforms (iOS, Android, Web, Backend).
 - `MEDIUM` → Maintainability, complexity, missing tests, conventions
 - `LOW` → Style, minor improvements, documentation
 
-**TOP PRIORITIES (check first):**
+**TOP PRIORITIES:**
 1. SECURITY: injection, auth bypass, secrets exposure, input validation
 2. ARCHITECTURE: DI violations, pattern violations, module boundaries
 3. DATA INTEGRITY: transactions, migrations, race conditions
@@ -32,6 +32,37 @@ Fix: How to fix it
 - `APPLIES_TO: mobile` → iOS, Android
 - `APPLIES_TO: web` → React, Vue, JS/TS frontend
 - `APPLIES_TO: backend` → Node, Python, Go, Java, etc.
+
+---
+
+## Comment Style Rules
+
+Every comment must be a **definitive finding** — state what IS wrong or what the better practice IS. Never ask the developer to go verify or check something themselves.
+
+**NEVER use these patterns:**
+- "Verify that...", "Ensure that...", "Make sure...", "Check if/whether..."
+- "Consider...", "You might want to...", "It might be worth..."
+- "Potentially", "Appears to", "Seems like", "Could possibly", "May cause"
+
+**Every comment must include:**
+1. What the problem is (or what the better practice is)
+2. Why it matters (consequence in production)
+3. How to fix it (concrete suggestion or code snippet)
+
+**Examples — correct assertive style:**
+
+| Category | ❌ Wrong (verification-style) | ✅ Right (assertive) |
+|----------|-------------------------------|----------------------|
+| Security | "Verify that user input is sanitized before use" | "**[HIGH]** `name` is concatenated directly into the SQL query — SQL injection risk. Use a parameterized query: `cursor.execute('... WHERE name = ?', (name,))`" |
+| Error handling | "Ensure the catch block handles all error cases" | "**[MEDIUM]** The catch block on line 31 is empty — if the API call fails, the error is silently swallowed and the caller gets no signal. Log the error and rethrow or return an error state." |
+| Architecture | "Consider whether this should use dependency injection" | "**[MEDIUM]** `AuthService` is instantiated directly with `AuthService()` — the codebase uses DI. Resolve it from the container so it can be mocked in tests." |
+| Concurrency | "Make sure this is thread-safe" | "**[HIGH]** `counter` is read and written from multiple threads without synchronization — race condition. Use an atomic type or protect with a lock." |
+| Data integrity | "Ensure these operations are atomic" | "**[HIGH]** `deductBalance()` and `recordTransaction()` run without a DB transaction — if `recordTransaction()` fails, the balance deduction is not rolled back. Wrap both in a transaction." |
+| Performance | "Consider whether this causes N+1 queries" | "**[MEDIUM]** `fetchUser(id)` is called on every iteration of the loop on line 44 — this causes N+1 queries. Batch-fetch all users before the loop." |
+| Dead code | "Consider whether this variable is still needed" | "**[LOW]** `oldPrice` is assigned on line 12 but never read anywhere in the file. Remove it." |
+| Best practice | "You might want to use a named constant here" | "**[LOW]** The magic number `86400` appears three times. Extract to a named constant `SECONDS_PER_DAY` to prevent typos and clarify intent." |
+
+If you cannot write a comment as a definitive assertion, skip it. False positives are worse than missed issues.
 
 ---
 
@@ -483,6 +514,22 @@ DETECT: x, temp, data, doStuff, inconsistent conventions
 FIX: Use descriptive names following codebase conventions
 ```
 
+### QUAL-DEAD-001: Dead or Unused Code
+```
+SEVERITY: LOW
+APPLIES_TO: all
+CONDITION: Code is added but never used
+DETECT:
+  - Variables assigned but never read
+  - Functions/methods defined but never called
+  - Imports that are unused
+  - Commented-out code blocks left behind
+  - Unreachable code after a return/throw
+  - Parameters declared but never used inside the function
+FIX: Remove the dead code entirely. Dead code adds noise, misleads readers,
+     and can mask real bugs. If it may be needed later, rely on version control.
+```
+
 ---
 
 ## SECTION: Type Safety Rules
@@ -734,7 +781,7 @@ When reviewing ANY file, verify:
 4. **CONCURRENCY** → race conditions, deadlocks, blocking, async errors
 5. **ERRORS** → not swallowed, timeout present, bounded retries
 6. **PERFORMANCE** → N+1, algorithms, memory, caching
-7. **QUALITY** → complexity, parameters, file size, duplication, naming
+7. **QUALITY** → complexity, parameters, file size, duplication, naming, dead/unused code
 8. **TYPES** → no unsafe casts, null checks, proper typing
 9. **TESTS** → coverage, edge cases, not flaky, not brittle
 10. **OBSERVABILITY** → logging, metrics, no PII in logs
@@ -904,9 +951,10 @@ Platform guidelines override Common rules when conflicts arise.
 
 ## Notes for AI Reviewers
 
-1. **Cite rule IDs** in comments (e.g., "SEC-INJECT-001: SQL injection risk")
-2. **Apply ALL common rules** regardless of platform
-3. **Load platform-specific guidelines** based on file extensions
-4. **Prioritize HIGH severity** findings over MEDIUM/LOW
-5. **Provide actionable fixes**, not just problem descriptions
-6. **Be concise** - one issue per comment, clear fix suggestion
+1. **Follow Comment Style Rules** — every comment must be assertive and definitive (see "Comment Style Rules" section above). Never ask the developer to verify or check something.
+2. **Cite rule IDs** in comments (e.g., "SEC-INJECT-001: SQL injection — user input concatenated into query")
+3. **Apply ALL common rules** regardless of platform
+4. **Load platform-specific guidelines** based on file extensions
+5. **Prioritize HIGH severity** findings over MEDIUM/LOW
+6. **Provide actionable fixes** — concrete code suggestion or specific steps, not just a description of the problem
+7. **Be concise** — one issue per comment, state the problem and fix clearly

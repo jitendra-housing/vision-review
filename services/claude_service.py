@@ -25,9 +25,12 @@ PLATFORM_GUIDELINES = {
     ".java": "Android.md",
 }
 
+sonnet_4_6 = "claude-sonnet-4-6"
+sonnet_4_5 = "claude-sonnet-4-5-20250929"
+
 class ClaudeService:
     def __init__(self):
-        self.llm = ChatAnthropic(model="claude-sonnet-4-5-20250929", temperature=0)
+        self.llm = ChatAnthropic(model=sonnet_4_6, temperature=0)
 
     def review_pr(self, pr_data: dict, repo: str) -> list:
         guidelines = self._load_guidelines(repo=repo, files=pr_data.get("files"))
@@ -41,7 +44,7 @@ class ClaudeService:
             print(f"Reviewing batch {i+1}/{len(batches)} ({len(batch)} files)")
             comments = self._review_batch(batch=batch, system_text=system_text)
             all_comments.extend(comments)
-        
+
         return all_comments
 
     def _load_guidelines(self, repo: str, files: list) -> str:
@@ -136,6 +139,7 @@ class ClaudeService:
             content = re.sub(r'^```json\s*|\s*```$', '', content, flags=re.MULTILINE).strip()
         
             comments = json.loads(content)
+            print(f"llm response {response}")
             for comment in comments:
                 assert "path" in comment
                 assert "line" in comment

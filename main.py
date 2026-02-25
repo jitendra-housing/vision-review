@@ -64,7 +64,8 @@ def process_review(repo: str, pr_number: int):
             github_service.post_review(repo=repo, pr_number=pr_number, comments=comments, commit_sha=pr_data.get("head_sha"), pr_files=pr_data.get("files"))
             print("Review posted successfully")
         else:
-            print("No issues found - no review posted")
+            github_service.approve_review(repo=repo, pr_number=pr_number, commit_sha=pr_data.get("head_sha"))
+            print("No issues found - Approved")
     except Exception as e:
         print(f"Error: {e}")
 
