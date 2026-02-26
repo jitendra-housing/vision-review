@@ -11,7 +11,7 @@ REPO_GUIDELINES = {
     "elarahq/housing.seller": ["housing.seller.md"],
     "elarahq/housing.seo": ["housing.seo.md"],
     "elarahq/khoj": ["khoj.md"],
-    "elarahq/housing-app": [],  # no repo-specific md, uses platform guidelines below
+    "elarahq/housing-app": [],
 }
 
      
@@ -139,7 +139,7 @@ class ClaudeService:
             content = re.sub(r'^```json\s*|\s*```$', '', content, flags=re.MULTILINE).strip()
         
             comments = json.loads(content)
-            print(f"llm response {response}")
+
             for comment in comments:
                 assert "path" in comment
                 assert "line" in comment
