@@ -132,7 +132,6 @@ class ClaudeService:
               },
           ]
 
-        print(f"DEBUG base_url: {self.llm._client.base_url}")
         response = self.llm.invoke(messages)
 
         try:

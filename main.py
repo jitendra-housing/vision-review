@@ -83,7 +83,7 @@ def process_review(repo: str, pr_number: int):
             sheets_service = SheetsService()
             severity_counts = _count_severities(comments)
             sheets_service.log_review({
-                "date": datetime.utcnow().strftime("%d/%m/%Y"),
+                "date": datetime.now().strftime("%d/%m/%Y"),
                 "url": f"https://github.com/{repo}/pull/{pr_number}",
                 "author": pr_data["author"],
                 "total_comments": len(comments),
@@ -97,9 +97,7 @@ def process_review(repo: str, pr_number: int):
             print(f"Sheets logging failed (non-fatal): {e}")
 
     except Exception as e:
-        import traceback
         print(f"Error: {e}")
-        traceback.print_exc()
 
 
 

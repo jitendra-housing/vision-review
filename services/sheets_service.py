@@ -1,4 +1,5 @@
 import os
+import time
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -16,7 +17,7 @@ class SheetsService:
         self.worksheet = spreadsheet.sheet1
 
     def log_review(self, row: dict) -> None:
-        self.worksheet.append_row([
+        data = [
             row["date"],
             row["url"],
             row["author"],
@@ -25,4 +26,13 @@ class SheetsService:
             row["high"],
             row["medium"],
             row["low"],
-        ], value_input_option="USER_ENTERED")
+        ]
+        for attempt in range(3):
+            try:
+                self.worksheet.append_row(data, value_input_option="USER_ENTERED")
+                return
+            except gspread.exceptions.APIError as e:
+                if attempt == 2:
+                    raise
+                print(f"Sheets API error (attempt {attempt + 1}/3): {e}, retrying...")
+                time.sleep(2 ** attempt)
