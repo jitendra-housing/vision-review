@@ -3,6 +3,8 @@ from app.webhook_handler import verify_signature
 from dotenv import load_dotenv
 from services.github_service import GithubRepoService
 from services.claude_service import ClaudeService
+from services.sheets_service import SheetsService
+from datetime import datetime
 import json
 import os
 
@@ -49,6 +51,16 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks):
 
     return {"status": "processing", "pr": pr_number}
 
+def _count_severities(comments: list) -> dict:
+    counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    for c in comments:
+        for level in counts:
+            if f"**[{level}]**" in c.get("body", ""):
+                counts[level] += 1
+                break
+    return counts
+
+
 def process_review(repo: str, pr_number: int):
     print("Starting process_review")
     try:
@@ -66,6 +78,24 @@ def process_review(repo: str, pr_number: int):
         else:
             github_service.approve_review(repo=repo, pr_number=pr_number, commit_sha=pr_data.get("head_sha"))
             print("No issues found - Approved")
+
+        try:
+            sheets_service = SheetsService()
+            severity_counts = _count_severities(comments)
+            sheets_service.log_review({
+                "date": datetime.now().strftime("%d/%m/%Y"),
+                "url": f"https://github.com/{repo}/pull/{pr_number}",
+                "author": pr_data["author"],
+                "total_comments": len(comments),
+                "files_reviewed": len(pr_data["files"]),
+                "high": severity_counts["HIGH"],
+                "medium": severity_counts["MEDIUM"],
+                "low": severity_counts["LOW"],
+            })
+            print("Logged to Google Sheets")
+        except Exception as e:
+            print(f"Sheets logging failed (non-fatal): {e}")
+
     except Exception as e:
         print(f"Error: {e}")
 
