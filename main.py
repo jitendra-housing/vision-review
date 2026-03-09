@@ -69,7 +69,7 @@ def process_review(repo: str, pr_number: int):
         
         claude_service = ClaudeService()
         print("Reviewing PR with claude")  
-        comments = claude_service.review_pr(pr_data=pr_data, repo=repo)
+        comments = claude_service.review_pr(pr_data=pr_data, repo=repo, github_service=github_service)
         print(f"Found {len(comments)} issues")
 
         if comments:
