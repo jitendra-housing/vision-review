@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 credentials/
+google_service_account.json
 *.egg-info
 
 # Virtual environments
