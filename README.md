@@ -1,6 +1,6 @@
 # Vision Review
 
-An automated GitHub PR review bot powered by Claude (Anthropic). When added as a reviewer on a pull request, it fetches the diff, applies relevant coding guidelines, and posts inline review comments with severity-tagged feedback.
+An in-house automated GitHub PR review bot. When added as a reviewer on a pull request, it fetches the diff, applies relevant coding guidelines, and posts inline review comments with severity-tagged feedback.
 
 ---
 
