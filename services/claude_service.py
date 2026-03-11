@@ -1,8 +1,16 @@
 from langchain_anthropic import ChatAnthropic
 from prompts.code_review import REVIEW_SYSTEM_PROMPT, REVIEW_USER_PROMPT
-import json
-import re
+from pydantic import BaseModel
 import os
+
+
+class ReviewComment(BaseModel):
+    path: str
+    line: int
+    body: str
+
+class ReviewResponse(BaseModel):
+    comments: list[ReviewComment]
 
 GUIDELINES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompts", "guidelines")
 
@@ -31,6 +39,7 @@ sonnet_4_5 = "claude-sonnet-4-5-20250929"
 class ClaudeService:
     def __init__(self):
         self.llm = ChatAnthropic(model=sonnet_4_6, temperature=0)
+        self.structured_llm = self.llm.with_structured_output(ReviewResponse)
 
     def review_pr(self, pr_data: dict, repo: str, github_service) -> list:
         guidelines = self._load_guidelines(repo=repo, files=pr_data.get("files"), head_sha=pr_data.get("head_sha"), github_service=github_service)
@@ -145,22 +154,11 @@ class ClaudeService:
               },
           ]
 
-        response = self.llm.invoke(messages)
-
         try:
-            content = response.content.strip()
-            content = re.sub(r'^```json\s*|\s*```$', '', content, flags=re.MULTILINE).strip()
-        
-            comments = json.loads(content)
-
-            for comment in comments:
-                assert "path" in comment
-                assert "line" in comment
-                assert "body" in comment
-            return comments
+            response = self.structured_llm.invoke(messages)
+            return [c.model_dump() for c in response.comments]
         except Exception as e:
-            print(f"Failed to parse Claude response: {e}")
-            print(f"Response: {response.content}")
+            print(f"Failed to get structured review response: {e}")
             raise
 
 

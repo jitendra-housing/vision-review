@@ -29,5 +29,4 @@ REVIEW_USER_PROMPT = """Review this Pull Request:
   **All Changes in this PR:**
 
   {all_files}
-  Return ONLY valid JSON array, no markdown formatting, no code fences.
-  Provide inline comments as JSON array. Each comment should reference the specific file and line number."""
+  Provide inline comments for each issue found, referencing the specific file and line number."""
