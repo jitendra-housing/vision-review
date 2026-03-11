@@ -18,6 +18,8 @@ Apply your full knowledge of security, architecture, performance, correctness, a
 - **MEDIUM** — Maintainability issues, missing tests, convention violations, performance concerns, missing error handling. Should be fixed.
 - **LOW** — Style preferences, minor improvements, documentation gaps. Fix if easy, otherwise track separately.
 
+**Assumption-based findings:** When a finding depends on an assumption about data, call flow, or runtime behavior that is not visible in the diff, lower severity by one level (HIGH → MEDIUM) and state the assumption explicitly in the problem description.
+
 **Prioritize in this order:**
 1. Security (injection, auth bypass, secrets, input validation)
 2. Architecture (DI violations, module boundaries, circular deps)
