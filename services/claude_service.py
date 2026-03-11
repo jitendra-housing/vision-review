@@ -32,8 +32,8 @@ class ClaudeService:
     def __init__(self):
         self.llm = ChatAnthropic(model=sonnet_4_6, temperature=0)
 
-    def review_pr(self, pr_data: dict, repo: str) -> list:
-        guidelines = self._load_guidelines(repo=repo, files=pr_data.get("files"))
+    def review_pr(self, pr_data: dict, repo: str, github_service) -> list:
+        guidelines = self._load_guidelines(repo=repo, files=pr_data.get("files"), head_sha=pr_data.get("head_sha"), github_service=github_service)
         system_text = REVIEW_SYSTEM_PROMPT + "\n\nGUIDELINES:\n" + guidelines
 
         batches = self._create_batches(files=pr_data.get("files"))
@@ -47,7 +47,15 @@ class ClaudeService:
 
         return all_comments
 
-    def _load_guidelines(self, repo: str, files: list) -> str:
+    def _fetch_vision_md(self, repo: str, head_sha: str, github_service) -> str | None:
+        try:
+            repo_obj = github_service.g.get_repo(repo)
+            content = repo_obj.get_contents("vision.md", ref=head_sha)
+            return content.decoded_content.decode()
+        except Exception:
+            return None
+
+    def _load_guidelines(self, repo: str, files: list, head_sha: str, github_service) -> str:
         guidelines = ""
         loaded = []
 
@@ -59,15 +67,20 @@ class ClaudeService:
         except FileNotFoundError:
             print(f"Warning: Common.md not found at {common_path}")
 
-        repo_guidelines = REPO_GUIDELINES.get(repo, [])
-        for filename in repo_guidelines:
-            try:
-                filepath = os.path.join(GUIDELINES_DIR, filename)
-                with open(filepath) as f:
-                    guidelines += "\n\n" + f.read()
-                loaded.append(filename)
-            except FileNotFoundError:
-                print(f"Warning: {filename} not found")
+        vision_md = self._fetch_vision_md(repo, head_sha, github_service)
+        if vision_md:
+            guidelines += "\n\n" + vision_md
+            loaded.append("vision.md (from repo)")
+        else:
+            repo_guidelines = REPO_GUIDELINES.get(repo, [])
+            for filename in repo_guidelines:
+                try:
+                    filepath = os.path.join(GUIDELINES_DIR, filename)
+                    with open(filepath) as f:
+                        guidelines += "\n\n" + f.read()
+                    loaded.append(filename)
+                except FileNotFoundError:
+                    print(f"Warning: {filename} not found")
 
         if repo == "elarahq/housing-app" and files:
             platform_file = self._detect_platform(files)
