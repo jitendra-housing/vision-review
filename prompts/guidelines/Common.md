@@ -29,6 +29,26 @@ Apply your full knowledge of security, architecture, performance, correctness, a
 
 ---
 
+## Database Migrations
+
+Migration files run against production databases under load. Review them with extreme caution.
+
+### Lock-Hazardous DDL (flag as HIGH)
+
+- **`CREATE INDEX`** without `CONCURRENTLY` — takes `ACCESS EXCLUSIVE` lock, blocks all reads and writes until complete.
+- **`ADD CONSTRAINT`** without `NOT VALID` — scans entire table while holding an exclusive lock. Use `NOT VALID` first, then `VALIDATE CONSTRAINT` separately (takes only `ShareUpdateExclusiveLock`).
+- **`ALTER COLUMN TYPE`** — triggers a full table rewrite + exclusive lock. Use the expand/contract pattern: add a shadow column with the new type, backfill, swap.
+- **`ADD COLUMN WITH DEFAULT`** (pre-PG 11) — rewrites entire table. Even on PG 11+, verify the version before assuming this is safe.
+
+### Migration Hygiene
+
+- **Never mix schema changes and data backfills** in the same migration. Data migrations can time out or fail partway, leaving schema changes partially applied. Run data backfills as separate, idempotent scripts or background jobs.
+- **Migrations are immutable once applied.** Never edit an already-applied migration. Flyway will throw a checksum mismatch; Active Record won't error but creates dangerous drift between environments. Always create a new migration to correct a previous one.
+- **Data migrations** that do `UPDATE ... SET` on an entire table must be batched. A single transaction touching millions of rows locks the table and can fill the WAL/binlog.
+- **Irreversible migrations** (column drops, type changes that lose data) must be flagged as HIGH. Verify a rollback path exists.
+
+---
+
 ## Comment Style Rules
 
 Every comment must be a **definitive finding** — state what IS wrong and what the correct approach IS.
@@ -44,6 +64,8 @@ Every comment must be a **definitive finding** — state what IS wrong and what 
 3. How to fix it (concrete code or specific steps)
 
 If you cannot write a comment as a definitive assertion, skip it. False positives are worse than missed issues.
+
+**Exception — operational and deployment risks:** If a code change introduces a well-known operational hazard (e.g. DDL that locks tables, missing index on a foreign key, unbounded query, unsafe migration pattern), flag it even if you cannot verify the runtime impact from the diff alone. State your assumption explicitly and use HIGH severity. These risks are too costly to miss.
 
 ---
 
@@ -95,6 +117,6 @@ Group findings by severity: all HIGH first, then MEDIUM, then LOW.
 
 When conflicts arise between guideline sources:
 
-1. **Platform-specific guidelines** (iOS.md, Android.md, etc.) — project conventions, always takes precedence
+1. **Platform-specific guidelines** (iOS.md, Android.md, etc.) — project conventions
 2. **This file** — universal standards and format
-3. **Your training knowledge** — fills gaps where guidelines don't cover
+3. **Your engineering knowledge** — applies everywhere, especially for production risks not covered above. Do not wait for a guideline to flag a known hazard.
