@@ -54,10 +54,9 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks):
 def _count_severities(comments: list) -> dict:
     counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
     for c in comments:
-        for level in counts:
-            if f"**[{level}]**" in c.get("body", ""):
-                counts[level] += 1
-                break
+        severity = c.get("severity", "").upper()
+        if severity in counts:
+            counts[severity] += 1
     return counts
 
 

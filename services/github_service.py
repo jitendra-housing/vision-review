@@ -59,7 +59,8 @@ class GithubRepoService(GithubService):
         for c in comments:
             path = c.get("path")
             line = c.get("line")
-            body = c.get("body")
+            severity = c.get("severity", "")
+            body = f"**[{severity}]** {c.get('body')}" if severity else c.get("body")
 
             valid_lines = valid_lines_map.get(path, set())
             if valid_lines:

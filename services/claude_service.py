@@ -1,12 +1,14 @@
 from langchain_anthropic import ChatAnthropic
 from prompts.code_review import REVIEW_SYSTEM_PROMPT, REVIEW_USER_PROMPT
 from pydantic import BaseModel
+from typing import Literal
 import os
 
 
 class ReviewComment(BaseModel):
     path: str
     line: int
+    severity: Literal["HIGH", "MEDIUM", "LOW"]
     body: str
 
 class ReviewResponse(BaseModel):
@@ -38,7 +40,7 @@ sonnet_4_5 = "claude-sonnet-4-5-20250929"
 
 class ClaudeService:
     def __init__(self):
-        self.llm = ChatAnthropic(model=sonnet_4_6, temperature=0)
+        self.llm = ChatAnthropic(model=sonnet_4_6, temperature=0, max_tokens=16384)
         self.structured_llm = self.llm.with_structured_output(ReviewResponse)
 
     def review_pr(self, pr_data: dict, repo: str, github_service) -> list:
