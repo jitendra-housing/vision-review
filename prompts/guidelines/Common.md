@@ -16,7 +16,7 @@ Apply your full knowledge of security, architecture, performance, correctness, a
 
 - **HIGH** — Security vulnerabilities, crashes, data loss, architecture violations, race conditions, breaking changes. Must be fixed before merge.
 - **MEDIUM** — Maintainability issues, missing tests, convention violations, performance concerns, missing error handling. Should be fixed.
-- **LOW** — Style preferences, minor improvements, documentation gaps. Fix if easy, otherwise track separately.
+- **LOW** — Clearly incorrect patterns (not preferences) with an obvious fix. Do NOT use LOW for: style preferences, naming opinions, documentation gaps, or "nice to have" improvements. If the code works correctly and is not confusing, do not flag it as LOW.
 
 **Assumption-based findings:** When a finding depends on an assumption about data, call flow, or runtime behavior that is not visible in the diff, lower severity by one level (HIGH → MEDIUM) and state the assumption explicitly in the problem description.
 

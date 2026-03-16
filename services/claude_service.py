@@ -4,6 +4,13 @@ from pydantic import BaseModel
 from typing import Literal
 import os
 
+SEVERITY_RANK = {"HIGH": 3, "MEDIUM": 2, "LOW": 1}
+
+REPO_MIN_SEVERITY: dict[str, str] = {
+    # Default is MEDIUM for all repos. Add repo overrides here to opt into LOW:
+    # "elarahq/some-repo": "LOW",
+}
+
 
 class ReviewComment(BaseModel):
     path: str
@@ -56,7 +63,20 @@ class ClaudeService:
             comments = self._review_batch(batch=batch, system_text=system_text)
             all_comments.extend(comments)
 
-        return all_comments
+        filtered = self._filter_by_severity(all_comments, repo)
+        return filtered
+
+    def _filter_by_severity(self, comments: list, repo: str) -> list:
+        env_override = os.environ.get("MIN_REVIEW_SEVERITY")
+        min_severity = env_override or REPO_MIN_SEVERITY.get(repo, "MEDIUM")
+        min_rank = SEVERITY_RANK.get(min_severity.upper(), 2)
+
+        before = len(comments)
+        filtered = [c for c in comments if SEVERITY_RANK.get(c.get("severity", ""), 0) >= min_rank]
+        dropped = before - len(filtered)
+        if dropped:
+            print(f"Severity filter: dropped {dropped} comment(s) below {min_severity}")
+        return filtered
 
     def _fetch_vision_md(self, repo: str, head_sha: str, github_service) -> str | None:
         try:
