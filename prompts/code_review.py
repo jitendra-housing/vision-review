@@ -23,8 +23,8 @@ REVIEW_SYSTEM_PROMPT = """You are a senior engineer doing a thorough production 
 
    **Output:**
    Return findings as JSON array:
-   [{{"path": "filename", "line": <num>, "body": "**[SEVERITY]** description"}}]
-   - Prefix body with: **[HIGH]**, **[MEDIUM]**, or **[LOW]**
+   [{{"path": "filename", "line": <num>, "severity": "HIGH|MEDIUM|LOW", "body": "description"}}]
+   - Do NOT include severity in the body text — it is a separate field
    - If no issues found, return: []"""
 
 
