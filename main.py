@@ -109,11 +109,11 @@ async def stream_review(repo, pr_number):
     try:
         success = await asyncio.to_thread(process_review, repo, pr_number)
         if success:
-            yield json.dumps({"status": "PR Review Done"})
+            yield json.dumps({"status": "done"})
         else:
-            yield json.dumps({"status": "PR Review Failed"})
+            yield json.dumps({"status": "failed"})
     except Exception as e:
-        yield json.dumps({"status": "PR Review Failed", "error": str(e)})
+        yield json.dumps({"status": "failed", "error": str(e)})
 
 
 
