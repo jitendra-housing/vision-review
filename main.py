@@ -101,6 +101,29 @@ def process_review(repo: str, pr_number: int):
 
 
 
+@app.get("/code-review")
+async def local_code_review(pr_url: str, background_tasks: BackgroundTasks, request: Request):
+    import re
+
+    # Verify shared secret
+    api_key = os.environ.get("LOCAL_REVIEW_API_KEY")
+    if api_key and request.headers.get("X-API-Key") != api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Parse PR URL
+    match = re.search(r"github\.com/([^/]+/[^/]+)/pull/(\d+)", pr_url)
+    if not match:
+        raise HTTPException(status_code=400, detail="Invalid GitHub PR URL")
+
+    repo = match.group(1)
+    pr_number = int(match.group(2))
+
+    print(f"Local review triggered for PR #{pr_number} from {repo}")
+    background_tasks.add_task(process_review, repo, pr_number)
+
+    return {"status": "processing", "pr": pr_number, "repo": repo}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
