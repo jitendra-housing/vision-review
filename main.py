@@ -1,10 +1,12 @@
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+from sse_starlette.sse import EventSourceResponse
 from app.webhook_handler import verify_signature
 from dotenv import load_dotenv
 from services.github_service import GithubRepoService
 from services.claude_service import ClaudeService
 from services.sheets_service import SheetsService
 from datetime import datetime
+import asyncio
 import json
 import os
 
@@ -95,14 +97,29 @@ def process_review(repo: str, pr_number: int):
         except Exception as e:
             print(f"Sheets logging failed (non-fatal): {e}")
 
+        return True
+
     except Exception as e:
         print(f"Error: {e}")
+        return False
+
+
+async def stream_review(repo, pr_number):
+    yield json.dumps({"status": "started"})
+    try:
+        success = await asyncio.to_thread(process_review, repo, pr_number)
+        if success:
+            yield json.dumps({"status": "PR Review Done"})
+        else:
+            yield json.dumps({"status": "PR Review Failed"})
+    except Exception as e:
+        yield json.dumps({"status": "PR Review Failed", "error": str(e)})
 
 
 
 
 @app.get("/code-review")
-async def local_code_review(pr_url: str, background_tasks: BackgroundTasks, request: Request):
+async def local_code_review(pr_url: str, request: Request):
     import re
 
     # Verify shared secret
@@ -119,9 +136,8 @@ async def local_code_review(pr_url: str, background_tasks: BackgroundTasks, requ
     pr_number = int(match.group(2))
 
     print(f"Local review triggered for PR #{pr_number} from {repo}")
-    background_tasks.add_task(process_review, repo, pr_number)
 
-    return {"status": "processing", "pr": pr_number, "repo": repo}
+    return EventSourceResponse(stream_review(repo, pr_number))
 
 
 @app.get("/health")

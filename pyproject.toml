@@ -15,4 +15,5 @@ dependencies = [
     "uvicorn[standard]>=0.41.0",
     "gspread>=6.0.0",
     "google-auth>=2.0.0",
+    "sse-starlette>=3.3.2",
 ]
