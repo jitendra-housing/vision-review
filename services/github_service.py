@@ -18,6 +18,8 @@ class GithubService:
 
 
 class GithubRepoService(GithubService):
+    FILE_COUNT_THRESHOLD = 200
+
     def __init__(self):
         super().__init__()
 
@@ -25,22 +27,32 @@ class GithubRepoService(GithubService):
         repo = self.g.get_repo(repo)
         pr = repo.get_pull(pr_number)
 
-        files = []
+        # First pass: collect filtered files with patches only
+        filtered_files = []
         for file in pr.get_files():
             if file.status != "removed" and file.patch and FileFilter.should_review(filename=file.filename):
-                full_file_code = self._fetch_full_file(file=file, repo=repo, pr=pr)
-                files.append({
-                    "filename": file.filename,
-                    "patch": file.patch,
-                    "full_content": full_file_code
-                })
-        
+                filtered_files.append(file)
+
+        patch_only = len(filtered_files) > self.FILE_COUNT_THRESHOLD
+        print(f"Found {len(filtered_files)} reviewable files — mode: {'patch-only' if patch_only else 'full-context'}")
+
+        # Second pass: build file data, skipping full content fetch for large PRs
+        files = []
+        for file in filtered_files:
+            full_file_code = None if patch_only else self._fetch_full_file(file=file, repo=repo, pr=pr)
+            files.append({
+                "filename": file.filename,
+                "patch": file.patch,
+                "full_content": full_file_code
+            })
+
         return {
             "title": pr.title,
             "description": pr.body or "",
             "author": pr.user.login,
             "head_sha": pr.head.sha,
-            "files": files
+            "files": files,
+            "patch_only": patch_only,
         }
 
     def post_review(self, repo: str, pr_number: int, comments: list, commit_sha: str, pr_files: list = None):

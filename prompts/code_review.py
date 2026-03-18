@@ -28,6 +28,13 @@ REVIEW_SYSTEM_PROMPT = """You are a senior engineer doing a thorough production 
    - If no issues found, return: []"""
 
 
+PATCH_ONLY_ADDENDUM = """
+NOTE: You are reviewing in PATCH-ONLY mode (large PR). You only have diff patches, NOT full file context.
+- Do not assume anything about code outside the diff
+- Focus strictly on what's visible in the patch
+- If you cannot determine impact without full context, note that limitation briefly
+"""
+
 REVIEW_USER_PROMPT = """Review this Pull Request:
 
   **All Changes in this PR:**

@@ -1,5 +1,5 @@
 from langchain_anthropic import ChatAnthropic
-from prompts.code_review import REVIEW_SYSTEM_PROMPT, REVIEW_USER_PROMPT
+from prompts.code_review import REVIEW_SYSTEM_PROMPT, REVIEW_USER_PROMPT, PATCH_ONLY_ADDENDUM
 from pydantic import BaseModel, field_validator
 from typing import Literal
 import json
@@ -52,8 +52,12 @@ class ClaudeService:
         self.structured_llm = self.llm.with_structured_output(ReviewResponse)
 
     def review_pr(self, pr_data: dict, repo: str, github_service) -> list:
+        patch_only = pr_data.get("patch_only", False)
         guidelines = self._load_guidelines(repo=repo, files=pr_data.get("files"), head_sha=pr_data.get("head_sha"), github_service=github_service)
-        system_text = REVIEW_SYSTEM_PROMPT + "\n\nGUIDELINES:\n" + guidelines
+        system_text = REVIEW_SYSTEM_PROMPT
+        if patch_only:
+            system_text += "\n" + PATCH_ONLY_ADDENDUM
+        system_text += "\n\nGUIDELINES:\n" + guidelines
 
         batches = self._create_batches(files=pr_data.get("files"))
         print(f"Split into {len(batches)} batches")
@@ -61,7 +65,7 @@ class ClaudeService:
         all_comments = []
         for i, batch in enumerate(batches):
             print(f"Reviewing batch {i+1}/{len(batches)} ({len(batch)} files)")
-            comments = self._review_batch(batch=batch, system_text=system_text)
+            comments = self._review_batch(batch=batch, system_text=system_text, patch_only=patch_only)
             all_comments.extend(comments)
 
         return all_comments
@@ -143,9 +147,9 @@ class ClaudeService:
 
         return batches
 
-    def _review_batch(self, batch: list, system_text: str) -> list:
+    def _review_batch(self, batch: list, system_text: str, patch_only: bool = False) -> list:
 
-        all_files_text = self._format_files(files=batch)
+        all_files_text = self._format_files(files=batch, patch_only=patch_only)
 
         messages = [
               {
@@ -172,7 +176,7 @@ class ClaudeService:
             raise
 
 
-    def _format_files(self, files: list) -> str:
+    def _format_files(self, files: list, patch_only: bool = False) -> str:
         formatted_files = []
 
         for file in files:
@@ -182,13 +186,16 @@ class ClaudeService:
                 {'='*60}
 
                 CHANGES (DIFF):
-                {file.get("patch")}
+                {file.get("patch")}"""
+
+            if not patch_only:
+                file_text += f"""
 
                 {'~'*60}
                 FULL FILE CONTEXT:
                 {'~'*60}
-                {file.get("full_content") if file.get("full_content") else "[Content not available]"}
-                """
+                {file.get("full_content") if file.get("full_content") else "[Content not available]"}"""
+
             formatted_files.append(file_text)
 
         return "\n\n".join(formatted_files)
