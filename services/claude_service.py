@@ -1,7 +1,8 @@
 from langchain_anthropic import ChatAnthropic
 from prompts.code_review import REVIEW_SYSTEM_PROMPT, REVIEW_USER_PROMPT
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Literal
+import json
 import os
 
 
@@ -13,6 +14,13 @@ class ReviewComment(BaseModel):
 
 class ReviewResponse(BaseModel):
     comments: list[ReviewComment]
+
+    @field_validator("comments", mode="before")
+    @classmethod
+    def parse_comments_string(cls, v):
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
 
 GUIDELINES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompts", "guidelines")
 

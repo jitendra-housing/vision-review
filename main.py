@@ -14,6 +14,9 @@ load_dotenv()
 
 app = FastAPI()
 
+# Track PRs currently being reviewed to prevent duplicate processing
+_active_reviews: set[str] = set()
+
 @app.post("/webhook")
 async def github_webhook(request: Request, background_tasks: BackgroundTasks):
     
@@ -39,16 +42,28 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks):
         print({"status": "ignored", "reason": f"action {action} ignored"})
         return {"status": "ignored", "reason": f"action {action} ignored"}
 
-    requested_reviewer_name = data.get("requested_reviewer", {}).get("login")
+    # Ignore events triggered by our own bot
+    sender = data.get("sender", {}).get("login")
     agent_reviewer_name = os.environ.get("GITHUB_USERNAME")
+    if sender == agent_reviewer_name:
+        print({"status": "ignored", "reason": "event triggered by bot itself"})
+        return {"status": "ignored", "reason": "event triggered by bot itself"}
+
+    requested_reviewer_name = data.get("requested_reviewer", {}).get("login")
     if requested_reviewer_name != agent_reviewer_name:
         print({"status": "ignored", "reason": f"requested reviewer is not {agent_reviewer_name}"})
         return {"status": "ignored", "reason": f"requested reviewer is not {agent_reviewer_name}"}
 
     pr_number = data["pull_request"]["number"]
     repo = data["repository"]["full_name"]
-    print(f"Reviewing PR #{pr_number} from {repo}")
 
+    review_key = f"{repo}#{pr_number}"
+    if review_key in _active_reviews:
+        print({"status": "ignored", "reason": f"review already in progress for {review_key}"})
+        return {"status": "ignored", "reason": "review already in progress"}
+
+    print(f"Reviewing PR #{pr_number} from {repo}")
+    _active_reviews.add(review_key)
     background_tasks.add_task(process_review, repo, pr_number)
 
     return {"status": "processing", "pr": pr_number}
@@ -63,6 +78,7 @@ def _count_severities(comments: list) -> dict:
 
 
 def process_review(repo: str, pr_number: int):
+    review_key = f"{repo}#{pr_number}"
     print("Starting process_review")
     try:
         github_service = GithubRepoService()
@@ -102,6 +118,8 @@ def process_review(repo: str, pr_number: int):
     except Exception as e:
         print(f"Error: {e}")
         return False
+    finally:
+        _active_reviews.discard(review_key)
 
 
 async def stream_review(repo, pr_number):
