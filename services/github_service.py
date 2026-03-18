@@ -82,12 +82,16 @@ class GithubRepoService(GithubService):
                 review_comments.append({"path": path, "line": line, "body": body})
         
         if review_comments:
-            pr.create_review(
-                commit=commit,
-                event="REQUEST_CHANGES",
-                comments=review_comments
-            )
-            print(f"Posted {len(review_comments)} inline comments")
+            try:
+                pr.create_review(
+                    commit=commit,
+                    event="REQUEST_CHANGES",
+                    comments=review_comments
+                )
+                print(f"Posted {len(review_comments)} inline comments")
+            except GithubException as e:
+                print(f"Failed to post review: status={e.status}, message={e.data}")
+                raise
         else:
             print("No valid comments to post")
         

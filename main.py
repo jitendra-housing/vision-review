@@ -76,6 +76,20 @@ def _count_severities(comments: list) -> dict:
             counts[severity] += 1
     return counts
 
+def _prioritize_comments(comments: list, max_comments: int = 40) -> list:
+    highs = [c for c in comments if c.get("severity", "").upper() == "HIGH"]
+    mediums = [c for c in comments if c.get("severity", "").upper() == "MEDIUM"]
+
+    result = highs[:max_comments]
+    remaining = max_comments - len(result)
+    if remaining > 0:
+        result.extend(mediums[:remaining])
+
+    if len(result) < len(comments):
+        print(f"Trimmed comments from {len(comments)} to {len(result)} (HIGH: {len(highs)}, MEDIUM: {len(mediums)}, dropped LOWs)")
+
+    return result
+
 
 def process_review(repo: str, pr_number: int):
     review_key = f"{repo}#{pr_number}"
@@ -88,6 +102,8 @@ def process_review(repo: str, pr_number: int):
         print("Reviewing PR with claude")  
         comments = claude_service.review_pr(pr_data=pr_data, repo=repo, github_service=github_service)
         print(f"Found {len(comments)} issues")
+
+        comments = _prioritize_comments(comments, max_comments=40)
 
         if comments:
             github_service.post_review(repo=repo, pr_number=pr_number, comments=comments, commit_sha=pr_data.get("head_sha"), pr_files=pr_data.get("files"))
