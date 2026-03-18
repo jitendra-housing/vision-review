@@ -94,6 +94,7 @@ def _prioritize_comments(comments: list, max_comments: int = 40) -> list:
 def process_review(repo: str, pr_number: int):
     review_key = f"{repo}#{pr_number}"
     print("Starting process_review")
+    pr_data = None
     try:
         github_service = GithubRepoService()
         pr_data = github_service.fetch_pr_data(repo=repo, pr_number=pr_number)
@@ -133,6 +134,17 @@ def process_review(repo: str, pr_number: int):
 
     except Exception as e:
         print(f"Error: {e}")
+        try:
+            sheets_service = SheetsService()
+            sheets_service.log_failure({
+                "date": datetime.now().strftime("%d/%m/%Y"),
+                "url": f"https://github.com/{repo}/pull/{pr_number}",
+                "author": pr_data["author"] if pr_data else "unknown",
+                "error": str(e),
+            })
+            print("Logged failure to Google Sheets")
+        except Exception as sheets_err:
+            print(f"Failed to log error to Sheets: {sheets_err}")
         return False
     finally:
         _active_reviews.discard(review_key)

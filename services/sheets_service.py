@@ -14,7 +14,8 @@ class SheetsService:
         creds = Credentials.from_service_account_file(creds_path, scopes=SCOPES)
         client = gspread.authorize(creds)
         spreadsheet = client.open_by_key(sheet_id)
-        self.worksheet = spreadsheet.sheet1
+        self.worksheet = spreadsheet.worksheet("Successful Reviews")
+        self.failed_worksheet = spreadsheet.worksheet("Failed Reviews")
 
     def log_review(self, row: dict) -> None:
         data = [
@@ -30,6 +31,23 @@ class SheetsService:
         for attempt in range(3):
             try:
                 self.worksheet.append_row(data, value_input_option="USER_ENTERED")
+                return
+            except gspread.exceptions.APIError as e:
+                if attempt == 2:
+                    raise
+                print(f"Sheets API error (attempt {attempt + 1}/3): {e}, retrying...")
+                time.sleep(2 ** attempt)
+
+    def log_failure(self, row: dict) -> None:
+        data = [
+            row["date"],
+            row["url"],
+            row["author"],
+            row["error"],
+        ]
+        for attempt in range(3):
+            try:
+                self.failed_worksheet.append_row(data, value_input_option="USER_ENTERED")
                 return
             except gspread.exceptions.APIError as e:
                 if attempt == 2:
