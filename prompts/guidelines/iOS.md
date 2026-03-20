@@ -914,6 +914,26 @@ guard let self = self else { return }
 
 ---
 
+## Design Constants
+
+Use `Padding` and `Radius` from `AppCore/Constants/DesignConstants.swift` for all padding and corner radius values. Do not hardcode numeric spacing or radius values anywhere in the codebase.
+
+### ✅ CORRECT - Use design constants
+```swift
+view.layer.cornerRadius = Radius.r8
+stackView.spacing = Padding.p16
+```
+
+### ❌ WRONG - Hardcoded values
+```swift
+view.layer.cornerRadius = 8       // ❌ Use Radius.r8
+stackView.spacing = 16            // ❌ Use Padding.p16
+```
+
+**Why:** Keeps spacing and radius consistent across the app and makes design changes easy to apply globally.
+
+---
+
 ## Quick Reference
 
 **When reviewing a PR, check:**
@@ -935,3 +955,4 @@ guard let self = self else { return }
 16. ✅ PRs kept small (under 1500 lines)
 17. ✅ Reusable small views for UI components
 18. ✅ Shorthand Swift syntax used where possible
+19. ✅ No hardcoded padding or radius — use `Padding` and `Radius` from `DesignConstants.swift`
